@@ -3780,10 +3780,7 @@ export class Agent<
       return this.#defaultNetworkOptions;
     }
 
-    const result = this.#defaultNetworkOptions({
-      requestContext: requestContext as RequestContext<TRequestContext>,
-      mastra: this.#mastra,
-    });
+    const result = resolveDynamicArgument(this.#defaultNetworkOptions, { requestContext, mastra: this.#mastra });
 
     return resolveMaybePromise(result, options => {
       if (!options) {

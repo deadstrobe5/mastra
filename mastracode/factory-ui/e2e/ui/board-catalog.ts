@@ -50,7 +50,6 @@ export const shipBoard: InstalledBoardInfo = {
   flow: {
     triage: 'think',
     build: 'make',
-    buildContext: 'work',
     selfReview: 'check',
     pullRequestReview: 'pr',
     completed: 'shipped',
@@ -72,7 +71,6 @@ export const workBoardInfo: InstalledBoardInfo = {
   id: workBoard.id,
   name: workBoard.name,
   title: workBoard.name,
-  default: true,
   initialPhase: workBoard.initialPhase,
   flow: catalogFlow(boardFlow(workBoard)),
   phases: Object.entries(workBoard.phases).map(([id, phase]) => ({
@@ -93,7 +91,6 @@ function catalogFlow(flow: ReturnType<typeof boardFlow>): NonNullable<InstalledB
   return {
     ...(flow.triage ? { triage: flow.triage } : {}),
     ...(flow.build ? { build: flow.build } : {}),
-    ...(flow.buildRole ? { buildContext: flow.buildRole } : {}),
     ...(flow.selfReview ? { selfReview: flow.selfReview } : {}),
     ...(flow.pullRequestReview ? { pullRequestReview: flow.pullRequestReview } : {}),
     ...(flow.completed ? { completed: flow.completed.phase } : {}),

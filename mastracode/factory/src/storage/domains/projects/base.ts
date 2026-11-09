@@ -44,8 +44,6 @@ export interface FactoryProject {
   modelScope: FactoryModelScope;
   /** Thinking level for this Factory's sessions and runs that have not picked their own. */
   defaultThinkingLevel: ThinkingLevelSetting;
-  /** Whether rules may start agent runs on their own; off, a run waits for approval on its card. */
-  autoRunEnabled: boolean;
   /** Workspace root in the sandbox; linked repositories are checked out beneath it. */
   sandboxWorkingDirectory: string | null;
   /** Provider settings document validated by the configured FactorySandbox. Only keys the user set. */
@@ -77,10 +75,16 @@ export interface FactoryProject {
   buildPushDebounceMinutes: number;
   /** Whether Review agents publish their test results as a commit check. Defaults to off. */
   reviewTestChecksEnabled: boolean;
-  /** Whether Work items get an independent self-review before the change request opens. Defaults to off. */
-  selfReviewEnabled: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Project switches the board replaced, as last stored. */
+export interface RetiredAutomationSettings {
+  /** Runs started without a person on every phase. */
+  autoRunEnabled: boolean;
+  /** Cards on a board with a self-review phase went through it. */
+  selfReviewEnabled: boolean;
 }
 
 export interface CreateFactoryProjectInput {
@@ -96,7 +100,6 @@ export interface UpdateFactoryProjectInput {
   defaultModelId?: string | null;
   modelScope?: FactoryModelScope;
   defaultThinkingLevel?: ThinkingLevelSetting;
-  autoRunEnabled?: boolean;
   sandboxWorkingDirectory?: string | null;
   sandboxSettings?: Record<string, unknown> | null;
   workspaceSetupCommand?: string | null;
@@ -109,7 +112,6 @@ export interface UpdateFactoryProjectInput {
   buildOnPushEnabled?: boolean;
   buildPushDebounceMinutes?: number;
   reviewTestChecksEnabled?: boolean;
-  selfReviewEnabled?: boolean;
 }
 
 export const FACTORY_PROJECTS_SCHEMA: CollectionSchema = {
@@ -127,6 +129,8 @@ export const FACTORY_PROJECTS_SCHEMA: CollectionSchema = {
     // migration. Old rows may still hold `true`, so never read it to bring Slack
     // work items back. Drop it in a later migration.
     slack_work_items_enabled: { type: 'boolean', default: false },
+    // Retired project switch: no longer written. A phase starts on its own with `autoStart`; the
+    // `auto-run-switch-v1` board migration reads it once to carry it into the project's boards.
     auto_run_enabled: { type: 'boolean', default: false },
     // Retired project switch: no longer read or written. Plans are approved per board (`exitTool.autoApprove`).
     auto_approve_plans: { type: 'boolean', default: false },
@@ -146,6 +150,8 @@ export const FACTORY_PROJECTS_SCHEMA: CollectionSchema = {
     build_on_push_enabled: { type: 'boolean', default: false },
     build_push_debounce_minutes: { type: 'integer', default: DEFAULT_BUILD_PUSH_DEBOUNCE_MINUTES },
     review_test_checks_enabled: { type: 'boolean', default: false },
+    // Retired project switch: no longer written. A board self-reviews when it has a self-review
+    // phase; the `work-self-review-switch-v1` board migration reads it once to carry it into Work.
     self_review_enabled: { type: 'boolean', default: false },
     /** Set once the source-control domain has backfilled repository positions and environment membership. */
     environment_backfilled_at: { type: 'timestamp', nullable: true },
@@ -200,7 +206,6 @@ function toFactoryProject(row: FactoryProjectDbRow): FactoryProject {
     defaultThinkingLevel: isThinkingLevelSetting(row.default_thinking_level)
       ? row.default_thinking_level
       : DEFAULT_THINKING_LEVEL,
-    autoRunEnabled: row.auto_run_enabled,
     sandboxWorkingDirectory: row.sandbox_working_directory ?? null,
     sandboxSettings: row.sandbox_settings ?? null,
     workspaceSetupCommand: row.workspace_setup_command ?? null,
@@ -215,7 +220,6 @@ function toFactoryProject(row: FactoryProjectDbRow): FactoryProject {
     buildOnPushEnabled: row.build_on_push_enabled ?? false,
     buildPushDebounceMinutes: row.build_push_debounce_minutes ?? DEFAULT_BUILD_PUSH_DEBOUNCE_MINUTES,
     reviewTestChecksEnabled: row.review_test_checks_enabled ?? false,
-    selfReviewEnabled: row.self_review_enabled ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -255,7 +259,6 @@ export class FactoryProjectsStorage extends FactoryStorageDomain {
       description: input.description ?? null,
       default_model_id: input.defaultModelId ?? null,
       model_scope: input.modelScope ?? 'hybrid',
-      auto_run_enabled: false,
       created_at: now,
       updated_at: now,
     });
@@ -283,6 +286,22 @@ export class FactoryProjectsStorage extends FactoryStorageDomain {
   async get({ orgId, id }: { orgId: string; id: string }): Promise<FactoryProject | null> {
     const row = await this.#db.findOne<FactoryProjectDbRow>('factory_projects', { org_id: orgId, id });
     return row ? toFactoryProject(row) : null;
+  }
+
+  /**
+   * The retired automation switches as the project last stored them, read only by the one-time
+   * board migrations that carry them into its boards. Null when the project doesn't exist.
+   */
+  async retiredAutomationSettings({
+    orgId,
+    id,
+  }: {
+    orgId: string;
+    id: string;
+  }): Promise<RetiredAutomationSettings | null> {
+    const row = await this.#db.findOne<FactoryProjectDbRow>('factory_projects', { org_id: orgId, id });
+    if (!row) return null;
+    return { autoRunEnabled: Boolean(row.auto_run_enabled), selfReviewEnabled: Boolean(row.self_review_enabled) };
   }
 
   async getById({ id }: { id: string }): Promise<FactoryProject | null> {
@@ -314,7 +333,6 @@ export class FactoryProjectsStorage extends FactoryStorageDomain {
           ...(changes.defaultThinkingLevel !== undefined
             ? { default_thinking_level: changes.defaultThinkingLevel }
             : {}),
-          ...(changes.autoRunEnabled !== undefined ? { auto_run_enabled: changes.autoRunEnabled } : {}),
           ...(changes.sandboxWorkingDirectory !== undefined
             ? { sandbox_working_directory: changes.sandboxWorkingDirectory }
             : {}),
@@ -337,7 +355,6 @@ export class FactoryProjectsStorage extends FactoryStorageDomain {
           ...(changes.reviewTestChecksEnabled !== undefined
             ? { review_test_checks_enabled: changes.reviewTestChecksEnabled }
             : {}),
-          ...(changes.selfReviewEnabled !== undefined ? { self_review_enabled: changes.selfReviewEnabled } : {}),
           updated_at: new Date(),
         };
       });

@@ -359,7 +359,6 @@ export const FACTORY_API_ROUTE_METADATA = {
     ],
     "queryParams": [],
     "bodyParams": [
-      "autoApprovePlans",
       "autoRunEnabled",
       "defaultModelId",
       "defaultThinkingLevel",
@@ -3403,14 +3402,11 @@ export const FACTORY_API_ROUTE_SCHEMAS = {
         "autoRunEnabled": {
           "$ref": "#/$defs/__schema5"
         },
-        "autoApprovePlans": {
+        "reviewTestChecksEnabled": {
           "$ref": "#/$defs/__schema6"
         },
-        "reviewTestChecksEnabled": {
-          "$ref": "#/$defs/__schema7"
-        },
         "selfReviewEnabled": {
-          "$ref": "#/$defs/__schema8"
+          "$ref": "#/$defs/__schema7"
         }
       },
       "$defs": {
@@ -3467,9 +3463,6 @@ export const FACTORY_API_ROUTE_SCHEMAS = {
           "type": "boolean"
         },
         "__schema7": {
-          "type": "boolean"
-        },
-        "__schema8": {
           "type": "boolean"
         }
       }

@@ -3,7 +3,7 @@ import { LibSQLFactoryStorage } from '@mastra/libsql';
 import { describe, expect, it, vi } from 'vitest';
 import { createBoardRegistry, defineBoard } from '../../boards/index.js';
 import { reviewBoard } from '../../boards/review.js';
-import { createTestBoard, selfReviewWorkBoard } from '../../boards/test-utils.js';
+import { autoStartingBoards, createTestBoard, selfReviewWorkBoard } from '../../boards/test-utils.js';
 import { FactoryDecisionDispatcher } from '../../rules/dispatcher.js';
 import { FactoryStartCoordinator } from '../../rules/start-coordinator.js';
 import { FactoryTransitionService } from '../../rules/transition-service.js';
@@ -303,7 +303,6 @@ describe.each(['libsql', ...(postgresUrl ? ['postgres'] : [])])('GitHub provider
       transitionService: new FactoryTransitionService({ storage: workItems, boards, configVersion }),
       storage: workItems,
       boards,
-      isAutoRunEnabled: async () => false,
       ownerId: 'provider-ingest-worker',
     });
     const opened = issueOpened('provider-split-opened', '2020-01-01T00:00:00Z');
@@ -1023,8 +1022,7 @@ describe('GithubRules', () => {
       controller: {} as never,
       transitionService,
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-guard',
     });
 
@@ -1057,8 +1055,7 @@ describe('GithubRules', () => {
       controller: {} as never,
       transitionService: new FactoryTransitionService({ storage: workItems, configVersion, boards }),
       storage: workItems,
-      boards,
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(boards),
       ownerId: 'worker-guard',
     });
 
@@ -1167,8 +1164,7 @@ describe('GithubRules', () => {
       controller: controller as never,
       transitionService,
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-1',
       primeCredentials,
       prepareBinding: async ({ record, item, role }) => {
@@ -1385,8 +1381,7 @@ describe('GithubRules', () => {
         boards: createBoardRegistry(),
       }),
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-1',
     });
     const reviewRequested = (deliveryId: string, reviewer = 'factory-app[bot]') => ({
@@ -1460,8 +1455,7 @@ describe('GithubRules', () => {
         boards: createBoardRegistry(),
       }),
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-1',
     });
 
@@ -1766,8 +1760,7 @@ describe('GithubRules', () => {
         boards: createBoardRegistry(),
       }),
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-1',
     });
 
@@ -1858,8 +1851,7 @@ describe('GithubRules', () => {
         boards: createBoardRegistry(),
       }),
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-1',
     });
 
@@ -1946,8 +1938,7 @@ describe('GithubRules', () => {
         boards: createBoardRegistry(),
       }),
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-1',
     });
     // The dispatcher polls on its own timer, so its tick can land as soon as
@@ -2647,8 +2638,7 @@ describe('GithubRules', () => {
       controller: controller as never,
       transitionService,
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-1',
     });
 
@@ -3049,8 +3039,7 @@ describe('GithubRules', () => {
         boards: createBoardRegistry(),
       }),
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-1',
     });
 
@@ -3115,8 +3104,7 @@ describe('GithubRules', () => {
         boards: createBoardRegistry(),
       }),
       storage: workItems,
-      boards: createBoardRegistry(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(createBoardRegistry()),
       ownerId: 'worker-1',
     });
     await service.ingest(pullRequest('opened', 'poll:repository-1:pull-request:17'));
@@ -3305,8 +3293,7 @@ describe('GithubRules', () => {
         boards: olderWork(),
       }),
       storage: workItems,
-      boards: olderWork(),
-      isAutoRunEnabled: async () => true,
+      boards: autoStartingBoards(olderWork()),
       ownerId: 'worker-1',
     });
     const work = await workItems.upsert({
@@ -3876,7 +3863,6 @@ describe('GithubRules with intake routes', () => {
       storage: base.workItems,
       boards,
       intakeRoutes: base.boards,
-      isAutoRunEnabled: async () => false,
       ownerId: 'worker-intake-routes',
     });
     const scope = { orgId: 'org-1', factoryProjectId: base.project.id };
@@ -4037,9 +4023,8 @@ describe('GithubRules with outside work in Intake', () => {
       controller: { getSession: vi.fn(async () => undefined) } as never,
       transitionService: new FactoryTransitionService({ storage: base.workItems, configVersion, boards }),
       storage: base.workItems,
-      boards,
+      boards: autoStartingBoards(boards),
       intakeRoutes: base.boards,
-      isAutoRunEnabled: async () => true,
       ownerId: 'worker-outside',
     });
     const deliver = async (ingress: Parameters<GithubRules['ingest']>[0]) => {
@@ -5266,9 +5251,8 @@ describe('pull request cards on the Work board', () => {
         boards,
       }),
       storage: harness.workItems,
-      boards,
+      boards: autoStartingBoards(boards),
       ...(withRoutes ? { intakeRoutes: harness.boards } : {}),
-      isAutoRunEnabled: async () => true,
       ownerId: 'worker-1',
     });
     let tick = 0;
@@ -5748,7 +5732,6 @@ describe.each(['libsql', ...(postgresUrl ? ['postgres'] : [])])('GitHub close an
       storage: workItems,
       boards,
       intakeRoutes: storedBoards,
-      isAutoRunEnabled: async () => false,
       ownerId: 'close-routes-worker',
     });
     const card = (
@@ -5981,9 +5964,8 @@ describe.each(['libsql', ...(postgresUrl ? ['postgres'] : [])])(
         controller: { getSession: vi.fn(async () => undefined) } as never,
         transitionService: new FactoryTransitionService({ storage: seeded.workItems, configVersion, boards }),
         storage: seeded.workItems,
-        boards,
+        boards: autoStartingBoards(boards),
         intakeRoutes: seeded.boards,
-        isAutoRunEnabled: async () => true,
         ownerId: 'worker-1',
       });
       let tick = 0;

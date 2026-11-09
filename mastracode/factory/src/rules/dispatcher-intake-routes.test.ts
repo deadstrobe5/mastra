@@ -4,6 +4,7 @@ import type { BoardEventFacts } from '../boards/board-events.js';
 import { createBoardRegistry, defineBoard } from '../boards/index.js';
 import type { BoardRegistry } from '../boards/index.js';
 import { ProjectBoardCache } from '../boards/project-boards.js';
+import { autoStartingBoards } from '../boards/test-utils.js';
 import { DEFAULT_INTAKE_ROUTE, PULL_REQUEST_INTAKE_ROUTE } from '../storage/domains/boards/base.js';
 import type { StoredIntakeRouteInput } from '../storage/domains/boards/base.js';
 import { createFactoryStorageForTests } from '../storage/test-utils.js';
@@ -42,7 +43,8 @@ const docsBoard = {
 async function setup(
   options: {
     withRoutesReader?: boolean;
-    autoRun?: boolean;
+    /** Every working phase starts on its own, as on a project that had the retired auto-run switch on. */
+    autoStart?: boolean;
     withDefaultRoute?: boolean;
     codeRegistry?: BoardRegistry;
   } = {},
@@ -59,7 +61,9 @@ async function setup(
     }
   }
   const boards = new ProjectBoardCache({
-    codeRegistry: options.codeRegistry ?? createBoardRegistry(),
+    codeRegistry: options.autoStart
+      ? autoStartingBoards(options.codeRegistry)
+      : (options.codeRegistry ?? createBoardRegistry()),
     storage: seeded.boards,
     recheckMs: 0,
   });
@@ -71,8 +75,6 @@ async function setup(
     storage: workItems,
     boards,
     ...(options.withRoutesReader === false ? {} : { intakeRoutes: seeded.boards }),
-    // Off unless a test asks: keeps any run a phase proposes parked, so most tests only see placement.
-    isAutoRunEnabled: async () => options.autoRun === true,
     ownerId: 'worker-routes',
   });
   let deliveries = 0;
@@ -280,7 +282,7 @@ describe('intake routes placing linked cards', () => {
   });
 
   it("files outside authors' GitHub and GitLab cards in Work › Intake by the default route, and starts nothing", async () => {
-    const { boards, scope, defaultRoute, deliver, runs } = await setup({ withDefaultRoute: true, autoRun: true });
+    const { boards, scope, defaultRoute, deliver, runs } = await setup({ withDefaultRoute: true, autoStart: true });
     expect(defaultRoute).toMatchObject({
       name: DEFAULT_INTAKE_ROUTE.name,
       target: { boardKey: 'work', phaseKey: 'intake' },
@@ -301,7 +303,7 @@ describe('intake routes placing linked cards', () => {
       const card = await deliver({ ...arrival, stage: 'inbox' });
       expect(placed(card), arrival.sourceKey).toEqual({ board: 'work', stages: ['intake'] });
       expect(card?.metadata).toMatchObject({ intakeRouteId: defaultRoute.id });
-      // Intake is a resting phase: even with auto-run on, nothing asks to run.
+      // Intake is a resting phase: even with every working phase starting on its own, nothing asks to run.
       expect(await runs(card!.id)).toEqual([]);
     }
 

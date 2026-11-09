@@ -4,54 +4,19 @@ import { Switch } from '@mastra/playground-ui/components/Switch';
 import { toast } from '@mastra/playground-ui/components/Toaster';
 import { Txt } from '@mastra/playground-ui/components/Txt';
 import { Settings2 } from 'lucide-react';
-import type { UseMutationResult } from '@tanstack/react-query';
+import { Link } from 'react-router';
 
-import { useSetFactoryAutomationMutation } from '../../../../hooks/useFactoryAutomation';
-
-function AutomationSwitch({
-  label,
-  description,
-  enabled,
-  mutation,
-}: {
-  label: string;
-  description: string;
-  enabled: boolean;
-  mutation: UseMutationResult<unknown, Error, boolean>;
-}) {
-  return (
-    <Field orientation="horizontal" className="items-start gap-4">
-      <FieldContent>
-        <FieldLabel>{label}</FieldLabel>
-        <FieldDescription>{description}</FieldDescription>
-      </FieldContent>
-      <Switch
-        aria-label={label}
-        checked={enabled}
-        disabled={mutation.isPending}
-        onCheckedChange={next => mutation.mutate(next, { onError: error => toast.error(error.message) })}
-      />
-    </Field>
-  );
-}
+import { useSetReviewTestChecksMutation } from '../../../../hooks/useFactoryAutomation';
+import { settingsSectionPath } from '../../settings/settingsSections';
 
 export function BoardAutomationSettings({
   factoryProjectId,
-  autoRunEnabled,
   reviewTestChecksEnabled,
-  selfReviewEnabled,
-  offersSelfReview,
 }: {
   factoryProjectId: string;
-  autoRunEnabled: boolean;
   reviewTestChecksEnabled: boolean;
-  selfReviewEnabled: boolean;
-  /** Whether this board has a self-review phase for the setting to turn on. */
-  offersSelfReview: boolean;
 }) {
-  const autoRun = useSetFactoryAutomationMutation(factoryProjectId, 'autoRunEnabled');
-  const testChecks = useSetFactoryAutomationMutation(factoryProjectId, 'reviewTestChecksEnabled');
-  const selfReview = useSetFactoryAutomationMutation(factoryProjectId, 'selfReviewEnabled');
+  const testChecks = useSetReviewTestChecksMutation(factoryProjectId);
 
   return (
     <Popover>
@@ -68,26 +33,24 @@ export function BoardAutomationSettings({
               All boards in this factory.
             </Txt>
           </div>
-          <AutomationSwitch
-            label="Auto-start runs"
-            enabled={autoRunEnabled}
-            mutation={autoRun}
-            description="Start incoming work automatically."
-          />
-          {offersSelfReview && (
-            <AutomationSwitch
-              label="Self-review before pull requests"
-              enabled={selfReviewEnabled}
-              mutation={selfReview}
-              description="An independent agent reviews and tests the branch before the pull request opens."
+          <Txt variant="caption" tone="muted">
+            The board&apos;s phases decide which runs start on their own and whether cards get a self-review.{' '}
+            <Link to={settingsSectionPath(factoryProjectId, 'board')} className="underline underline-offset-2">
+              Edit the Work board
+            </Link>
+          </Txt>
+          <Field orientation="horizontal" className="items-start gap-4">
+            <FieldContent>
+              <FieldLabel>Publish review test checks</FieldLabel>
+              <FieldDescription>Report review test results as a check on the pull request.</FieldDescription>
+            </FieldContent>
+            <Switch
+              aria-label="Publish review test checks"
+              checked={reviewTestChecksEnabled}
+              disabled={testChecks.isPending}
+              onCheckedChange={next => testChecks.mutate(next, { onError: error => toast.error(error.message) })}
             />
-          )}
-          <AutomationSwitch
-            label="Publish review test checks"
-            enabled={reviewTestChecksEnabled}
-            mutation={testChecks}
-            description="Report review test results as a check on the pull request."
-          />
+          </Field>
         </div>
       </PopoverContent>
     </Popover>

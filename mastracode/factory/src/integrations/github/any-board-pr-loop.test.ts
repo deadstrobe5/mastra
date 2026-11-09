@@ -252,7 +252,6 @@ async function harness(backend: string, loop: Loop) {
     boards,
     intakeRoutes: seeded.boards,
     // Runs stay queued: the test plays every agent itself, through the tools agents get.
-    isAutoRunEnabled: async () => false,
     ownerId: 'worker-loop',
   });
   let tick = 0;

@@ -252,7 +252,10 @@ export function BoardContent({
     const feedFailed = Boolean(columnFeed?.error);
     // No card is created by hand on the retired Review board: its cards come from pull requests.
     const canCreate =
-      !pullRequestsOnly && !items.isPending && stage.kind !== 'terminal' && (composer.stage === undefined || composerOpen);
+      !pullRequestsOnly &&
+      !items.isPending &&
+      stage.kind !== 'terminal' &&
+      (composer.stage === undefined || composerOpen);
     const canConnectSource = isInitialPhase && !hasIntakeSource;
     const showEmptyStateActions = isInitialPhase && (filtersExcludeAll || canCreate || canConnectSource);
     const collapsed =

@@ -43,3 +43,35 @@ export const builtinBoardCatalog: BoardCatalogResponse = {
     },
   ],
 };
+
+/** The retired Review board, which the server still serves to a project with open cards on it. */
+export const keptReviewBoard: InstalledBoardInfo = {
+  id: 'review',
+  title: 'Review',
+  initialPhase: 'intake',
+  phases: [
+    {
+      id: 'intake',
+      title: 'Intake',
+      kind: 'resting',
+      transitions: [
+        { outcome: null, to: 'review' },
+        { outcome: null, to: 'done' },
+        { outcome: null, to: 'canceled' },
+      ],
+    },
+    {
+      id: 'review',
+      title: 'Reviewing',
+      kind: 'working',
+      role: 'review',
+      transitions: [
+        { outcome: null, to: 'intake' },
+        { outcome: null, to: 'done' },
+        { outcome: null, to: 'canceled' },
+      ],
+    },
+    { id: 'done', title: 'Done', kind: 'terminal', transitions: [{ outcome: null, to: 'review' }] },
+    { id: 'canceled', title: 'Canceled', kind: 'terminal', transitions: [{ outcome: null, to: 'review' }] },
+  ],
+};

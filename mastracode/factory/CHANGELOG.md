@@ -1,5 +1,39 @@
 # @mastra/factory
 
+## 0.28.0-alpha.3
+
+### Minor Changes
+
+- Factory agents can now browse Linear. `linear_list_projects` lists the connected workspace's projects and teams (optionally filtered by name), and `linear_list_issues` lists the open issues in one of them, with label filtering and pagination. Agents can now read the tickets in a project from its name or URL instead of needing each issue identifier. ([#29435](https://github.com/mastra-ai/mastra/pull/29435))
+
+  The Linear project picker in Settings now lists every project in workspaces with more than 100 projects, instead of only the first 100.
+
+### Patch Changes
+
+- Fixed the work item audit trail for custom-board phases. Stage moves now record the phase they came from, and a commit that stays in the same phase no longer records a phantom stage move. ([#29481](https://github.com/mastra-ai/mastra/pull/29481))
+
+- The encryption key banner now reads as the config fix it is: "Factory needs its encryption key. This deployment is using a different one than before. Set `FACTORY_CREDENTIAL_ENCRYPTION_KEY` and redeploy." ([#29828](https://github.com/mastra-ai/mastra/pull/29828))
+
+- Factory now explains why integrations and provider credentials are unavailable when its stored secrets can't be decrypted. Previously, a changed `FACTORY_CREDENTIAL_ENCRYPTION_KEY` showed only "github integration is unavailable." on the board and `credentials_unavailable` in provider settings, with nothing in the server log about integrations. Both errors now say the stored secrets were saved with a different encryption key, that they were not changed, and how to restore the key and redeploy. A new public `GET /web/status` reports this as a startup problem so the UI can show it once for the whole Factory. Boot also logs every storage domain that fails to initialize, along with its error. ([#29644](https://github.com/mastra-ai/mastra/pull/29644))
+
+- Fixed 403 errors in the file and changes panels when an org member opens a session someone else shared with the org. Private sessions stay visible only to their owner. ([#29793](https://github.com/mastra-ai/mastra/pull/29793))
+
+- Factory can now report the Mastra package versions it was built with. Signed-in users see them under **Settings › Debug** after a `mastra build` from this CLI version or newer. ([#29647](https://github.com/mastra-ai/mastra/pull/29647))
+
+- Improved run lookup speed for sessions without a factory project ID. ([#29594](https://github.com/mastra-ai/mastra/pull/29594))
+
+- Fixed GitHub repository access after the GitHub App was reinstalled more than once. Recovery could pick an older, also-dead installation and save it on the repository, which then broke git access for good. It now tries the newest installations first and only moves the repository to one that can mint a token. ([#29472](https://github.com/mastra-ai/mastra/pull/29472))
+
+- Factory chat no longer re-renders on every status update that changes nothing. While a reply streams, the agent sends a status snapshot many times a second; snapshots that repeat the token usage, memory progress and buffering state already on screen are now skipped. ([#29596](https://github.com/mastra-ai/mastra/pull/29596))
+
+- When someone without a connected account mentions the Factory agent in a Slack channel, the agent now replies in the thread, mentions them, and links to account setup. Before, the prompt was shown only to that person (or sent as a DM), so the rest of the thread saw no reply. ([#29623](https://github.com/mastra-ai/mastra/pull/29623))
+
+- Updated dependencies [[`58a66b0`](https://github.com/mastra-ai/mastra/commit/58a66b01d9b08e7b59c27fc3ab68eb90be13c0ed), [`94b1641`](https://github.com/mastra-ai/mastra/commit/94b1641919dd90455131b16cd0572ce28008781b), [`8279c30`](https://github.com/mastra-ai/mastra/commit/8279c3073737dd1c228b5df15416ca4ce7e0c00c), [`bc9d8d4`](https://github.com/mastra-ai/mastra/commit/bc9d8d482cec626ef2107f1cbd5a05febceaa491), [`8a10dfe`](https://github.com/mastra-ai/mastra/commit/8a10dfe648610a6687d1e4ecc10a0a81e3d80c4c), [`d77893a`](https://github.com/mastra-ai/mastra/commit/d77893aed38eefe2dbac21e9fffd872137ee6b92), [`791cf60`](https://github.com/mastra-ai/mastra/commit/791cf606e91badea097b883949dc717689caa49d), [`b31cbe2`](https://github.com/mastra-ai/mastra/commit/b31cbe2888f890383629d20c853e21f870dee5a6), [`a836d09`](https://github.com/mastra-ai/mastra/commit/a836d09a43c3c471b5bfced711731355bf26db26), [`efe53f0`](https://github.com/mastra-ai/mastra/commit/efe53f0b3c425b7179f93902accaa775cef3bb89), [`94d6258`](https://github.com/mastra-ai/mastra/commit/94d62580788929e783913433c574b6727f09356b), [`7358ad7`](https://github.com/mastra-ai/mastra/commit/7358ad73a381765572858d520f8170ab59e88514), [`b93d804`](https://github.com/mastra-ai/mastra/commit/b93d804a7a406d834389e686687b06d22ea2e4f1), [`ed1cecb`](https://github.com/mastra-ai/mastra/commit/ed1cecba5c26a73600640f74e9a1c9d322271b23), [`b31cbe2`](https://github.com/mastra-ai/mastra/commit/b31cbe2888f890383629d20c853e21f870dee5a6), [`28ddc16`](https://github.com/mastra-ai/mastra/commit/28ddc161a441fdc3ecbdcc1168dee773f1f25243), [`0f496bd`](https://github.com/mastra-ai/mastra/commit/0f496bd3c1cc7f07d2e4ecb3005d480406b3d342), [`de005a4`](https://github.com/mastra-ai/mastra/commit/de005a43d8703d36c5dd25d7ddd1f618ea98bf55)]:
+  - @mastra/core@1.83.0-alpha.3
+  - @mastra/platform-workspace@1.13.0-alpha.0
+  - @mastra/code-sdk@1.19.0-alpha.3
+  - @mastra/mcp@2.9.0-alpha.1
+
 ## 0.28.0-alpha.2
 
 ### Patch Changes

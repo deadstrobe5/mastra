@@ -1,5 +1,29 @@
 # mastra
 
+## 1.39.0-alpha.3
+
+### Patch Changes
+
+- Improved Factory boards so you can see where a card's work happens and why it moved: ([#29650](https://github.com/mastra-ai/mastra/pull/29650))
+
+  - Clicking a card opens the session for the phase it is in now, not its first session. The card's details list all of its sessions by context (Triage, Work, Review) and mark the current one.
+  - The sessions sidebar groups a card's sessions under the card's title, each named by its context.
+  - A card's session page names that session's context in the breadcrumb, and says which phase the card is in now when it has moved on.
+  - A card sent back to an earlier phase says so, for example "Back from Review", with the reason: self-review's findings, or the agent's explanation for the move. The card's details show the full reason.
+  - Board columns and list groups show the tool that ends a phase, such as `submit_plan` for Planning, and whether a person approves it.
+
+- `mastra build` now writes the resolved `@mastra/*` package versions to `.mastra/output/mastra-packages.json`, so a deployed server can report what it runs. The Factory UI bundled with the CLI shows them under **Settings › Debug**, with a button that copies the list for bug reports. ([#29647](https://github.com/mastra-ai/mastra/pull/29647))
+
+- The encryption key banner now reads as the config fix it is: "Factory needs its encryption key. This deployment is using a different one than before. Set `FACTORY_CREDENTIAL_ENCRYPTION_KEY` and redeploy." ([#29828](https://github.com/mastra-ai/mastra/pull/29828))
+
+- Factory now shows an alert banner above every page when it can't decrypt its stored secrets, so users see the problem right away instead of finding it page by page. The banner says the secrets are safe, shows the env var to redeploy with, and links to the docs. Pages and settings stay usable underneath. Settings pages also show a server's readable error message instead of its error code. ([#29644](https://github.com/mastra-ai/mastra/pull/29644))
+
+- Factory chat no longer re-renders on every status update that changes nothing. While a reply streams, the agent sends a status snapshot many times a second; snapshots that repeat the token usage, memory progress and buffering state already on screen are now skipped. ([#29596](https://github.com/mastra-ai/mastra/pull/29596))
+
+- Updated dependencies [[`58a66b0`](https://github.com/mastra-ai/mastra/commit/58a66b01d9b08e7b59c27fc3ab68eb90be13c0ed), [`94b1641`](https://github.com/mastra-ai/mastra/commit/94b1641919dd90455131b16cd0572ce28008781b), [`8279c30`](https://github.com/mastra-ai/mastra/commit/8279c3073737dd1c228b5df15416ca4ce7e0c00c), [`bc9d8d4`](https://github.com/mastra-ai/mastra/commit/bc9d8d482cec626ef2107f1cbd5a05febceaa491), [`8a10dfe`](https://github.com/mastra-ai/mastra/commit/8a10dfe648610a6687d1e4ecc10a0a81e3d80c4c), [`d77893a`](https://github.com/mastra-ai/mastra/commit/d77893aed38eefe2dbac21e9fffd872137ee6b92), [`791cf60`](https://github.com/mastra-ai/mastra/commit/791cf606e91badea097b883949dc717689caa49d), [`b31cbe2`](https://github.com/mastra-ai/mastra/commit/b31cbe2888f890383629d20c853e21f870dee5a6), [`a836d09`](https://github.com/mastra-ai/mastra/commit/a836d09a43c3c471b5bfced711731355bf26db26), [`7358ad7`](https://github.com/mastra-ai/mastra/commit/7358ad73a381765572858d520f8170ab59e88514), [`b93d804`](https://github.com/mastra-ai/mastra/commit/b93d804a7a406d834389e686687b06d22ea2e4f1), [`ed1cecb`](https://github.com/mastra-ai/mastra/commit/ed1cecba5c26a73600640f74e9a1c9d322271b23), [`b31cbe2`](https://github.com/mastra-ai/mastra/commit/b31cbe2888f890383629d20c853e21f870dee5a6), [`28ddc16`](https://github.com/mastra-ai/mastra/commit/28ddc161a441fdc3ecbdcc1168dee773f1f25243), [`0f496bd`](https://github.com/mastra-ai/mastra/commit/0f496bd3c1cc7f07d2e4ecb3005d480406b3d342), [`de005a4`](https://github.com/mastra-ai/mastra/commit/de005a43d8703d36c5dd25d7ddd1f618ea98bf55)]:
+  - @mastra/core@1.83.0-alpha.3
+  - @mastra/deployer@1.83.0-alpha.3
+
 ## 1.39.0-alpha.2
 
 ### Patch Changes

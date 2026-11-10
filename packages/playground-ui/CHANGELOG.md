@@ -1,5 +1,50 @@
 # @mastra/playground-ui
 
+## 69.0.0-alpha.4
+
+### Minor Changes
+
+- Added in-place renaming for dashboard widget titles. Pass `onTitleChange` to `StatelessWidget` (or `ChartCard`) and plain titles become editable: hover or focus shows a dashed outline, Enter or clicking away saves the trimmed title, and Escape cancels. Titles with a view menu or an expand link stay read-only. Saving the new title is up to you. ([#29751](https://github.com/mastra-ai/mastra/pull/29751))
+
+  ```tsx
+  <StatelessWidget {...widgetProps} onTitleChange={title => saveWidget({ ...widget, title })} />
+  ```
+
+- Changed empty charts to look the same everywhere: the chart keeps its dates but drops its lines and y-axis, under dashed rulers and "No data in this range". Legends stay hidden while a chart loads or has nothing to show, and totals show 0 instead of "—" when the range is empty. ([#29740](https://github.com/mastra-ai/mastra/pull/29740))
+
+  `ChartArea`'s `emptyMessage` is now only for a reason other than an empty range, such as a preview that can't run yet; leave it out for an empty range. The `emptyMessage` option of `timeseries` and `scores` dashboard widgets is deprecated: saved definitions still parse, but every empty chart shows "No data in this range". Table widgets keep their `emptyMessage`.
+
+  ```tsx
+  // Before
+  <ChartArea isEmpty={runs === 0} emptyMessage="No agent runs in this range.">
+    <MetricsLineChart {...chart} />
+  </ChartArea>
+
+  // After
+  <ChartArea isEmpty={runs === 0}>
+    <MetricsLineChart {...chart} />
+  </ChartArea>
+  ```
+
+### Patch Changes
+
+- Thinned the Metrics, Traces, Logs, Tools, Prompts, Experiments, Datasets, Scorers, Workspaces, Settings and Processor icons to the same line weight as every other icon, so they no longer look heavier than the icons beside them. They keep their overall look; Settings and Processor are now outlines instead of solid shapes. The Agent, Workflow and MCP Server icons are unchanged. ([#28868](https://github.com/mastra-ai/mastra/pull/28868))
+
+- Fixed the KPI row on dashboards being narrower than the cards around it when it can be moved, pinned, or turned into an alert. Its move, alert, and pin buttons now float over the top edge of the row instead of sitting beside the figures, so the row lines up with the rest of the dashboard. Like on chart cards, the buttons stay visible while the dashboard is being rearranged or the row is pinned, and otherwise show on hover or keyboard focus. ([#29753](https://github.com/mastra-ai/mastra/pull/29753))
+
+- Fixed filter rows on narrow screens. When the filters and the controls on the right no longer fit on one line, the controls now move to their own line below, and the filter input fills the rest of the first line instead of dropping under the time range. The filter input also shrinks further before wrapping and grows up to 320px on wide screens. ([#29786](https://github.com/mastra-ai/mastra/pull/29786))
+
+- Long Markdown lists now stay fast while a reply streams. `MarkdownRenderer` re-renders only the list item still being written instead of re-parsing the whole list on every chunk. Once the reply finishes, the list renders exactly as before. While it streams, a bold or italic marker the stream left open now closes inside the item being written, instead of spilling the next marker into it or showing as stray text below the list. ([#29596](https://github.com/mastra-ai/mastra/pull/29596))
+
+- Improved resize performance on pages with many metrics charts. Charts that are scrolled out of view are no longer redrawn when their container resizes; they redraw once they scroll back into view, so opening a side panel no longer freezes the page. ([#29726](https://github.com/mastra-ai/mastra/pull/29726))
+
+- Updated dependencies [[`58a66b0`](https://github.com/mastra-ai/mastra/commit/58a66b01d9b08e7b59c27fc3ab68eb90be13c0ed), [`94b1641`](https://github.com/mastra-ai/mastra/commit/94b1641919dd90455131b16cd0572ce28008781b), [`8279c30`](https://github.com/mastra-ai/mastra/commit/8279c3073737dd1c228b5df15416ca4ce7e0c00c), [`224d519`](https://github.com/mastra-ai/mastra/commit/224d51972ac525ef866f232d09d4a911ef4b94bb), [`791cf60`](https://github.com/mastra-ai/mastra/commit/791cf606e91badea097b883949dc717689caa49d), [`bc9d8d4`](https://github.com/mastra-ai/mastra/commit/bc9d8d482cec626ef2107f1cbd5a05febceaa491), [`8a10dfe`](https://github.com/mastra-ai/mastra/commit/8a10dfe648610a6687d1e4ecc10a0a81e3d80c4c), [`d77893a`](https://github.com/mastra-ai/mastra/commit/d77893aed38eefe2dbac21e9fffd872137ee6b92), [`791cf60`](https://github.com/mastra-ai/mastra/commit/791cf606e91badea097b883949dc717689caa49d), [`b31cbe2`](https://github.com/mastra-ai/mastra/commit/b31cbe2888f890383629d20c853e21f870dee5a6), [`a836d09`](https://github.com/mastra-ai/mastra/commit/a836d09a43c3c471b5bfced711731355bf26db26), [`7358ad7`](https://github.com/mastra-ai/mastra/commit/7358ad73a381765572858d520f8170ab59e88514), [`7601d91`](https://github.com/mastra-ai/mastra/commit/7601d91220294b5ef2f489a8606543b0cbccf26f), [`b93d804`](https://github.com/mastra-ai/mastra/commit/b93d804a7a406d834389e686687b06d22ea2e4f1), [`ed1cecb`](https://github.com/mastra-ai/mastra/commit/ed1cecba5c26a73600640f74e9a1c9d322271b23), [`b31cbe2`](https://github.com/mastra-ai/mastra/commit/b31cbe2888f890383629d20c853e21f870dee5a6), [`28ddc16`](https://github.com/mastra-ai/mastra/commit/28ddc161a441fdc3ecbdcc1168dee773f1f25243), [`0f496bd`](https://github.com/mastra-ai/mastra/commit/0f496bd3c1cc7f07d2e4ecb3005d480406b3d342), [`de005a4`](https://github.com/mastra-ai/mastra/commit/de005a43d8703d36c5dd25d7ddd1f618ea98bf55)]:
+  - @mastra/core@1.83.0-alpha.3
+  - @mastra/client-js@1.60.0-alpha.3
+  - @mastra/memory@1.41.1-alpha.1
+  - @mastra/react@1.15.0-alpha.3
+  - @mastra/ai-sdk@1.11.3
+
 ## 69.0.0-alpha.3
 
 ### Patch Changes

@@ -1,5 +1,111 @@
 # @mastra/core
 
+## 1.83.0-alpha.3
+
+### Minor Changes
+
+- Added an `injectCatalog` option to `SkillsProcessor` so agents with many skills can leave the skills list out of the system message. With `injectCatalog: false`, the agent gets a short instruction to find skills with the `skill_search` tool and load them with the `skill` tool. The `skill`, `skill_read`, and `skill_search` tools stay available for both workspace skills and skills configured on the agent. ([#26316](https://github.com/mastra-ai/mastra/pull/26316))
+
+  **Before**: every skill's name, description, and location was added to the system message on every request.
+
+  **After**:
+
+  ```ts
+  import { Agent } from '@mastra/core/agent';
+  import { SkillsProcessor } from '@mastra/core/processors';
+
+  const agent = new Agent({
+    workspace,
+    inputProcessors: [new SkillsProcessor({ injectCatalog: false })],
+  });
+  ```
+
+  When you turn the list off, `skill_search` can find skills without additional search setup. For larger collections, configure BM25 or vector search on the workspace to improve ranking and retrieval. The instruction is left out when the `skill_search` tool isn't active for the request. The option defaults to `true`, so existing agents are unchanged.
+
+### Patch Changes
+
+- Fixed resuming a stream from an offset silently skipping events. If the cache gave out an event index but then failed to store the event, replaying from an offset could drop the events right after the missing one. This could happen on caches that store the index and the event in two separate steps, such as Redis Cluster, or a Convex deployment whose cache functions haven't been redeployed. Replaying a stream, filling gaps in a live stream, and `getHistory` now return the stored events from the requested offset in order. The event whose write failed still can't be replayed from the cache, though subscribers listening live still receive it. ([#29783](https://github.com/mastra-ai/mastra/pull/29783))
+
+  Known limitation: on those same caches, events published at the same time can be stored out of order, and an event stored earlier in the list than the replay start can still be missed. Caches that store the index and the event in one step are not affected.
+
+- Fixed structured output on Azure OpenAI models failing with `Invalid schema for response_format` when strict mode is on. This affects `@ai-sdk/azure` models from AI SDK 6, which use strict mode by default, and `AzureOpenAIGateway` or AI SDK 5 `@ai-sdk/azure` models with `strictJsonSchema: true`. Defaults are unchanged: `AzureOpenAIGateway` and AI SDK 5 models still send non-strict requests unless you opt in, and tool schemas are not prepared for strict mode yet. See #28593. ([#29590](https://github.com/mastra-ai/mastra/pull/29590))
+
+- Fixed claimed-owner discovery sending one extra request right at its 1 s deadline when a timer fired a millisecond early. ([#29157](https://github.com/mastra-ai/mastra/pull/29157))
+
+- With `server.auth` set and no `server.cors.origin`, the server no longer sends `Access-Control-Allow-Credentials: true` for every reflected origin. Credentials are now on by default only when you list allowed origins in `server.cors.origin`, or set `server.cors.credentials` yourself. ([#29406](https://github.com/mastra-ai/mastra/pull/29406))
+
+  If a browser app on another origin sends cookies to an auth-enabled server, list that app's origin:
+
+  ```ts
+  // Before: credentials were sent for any reflected origin
+  server: { auth: yourAuth }
+
+  // After: allow your app's origin explicitly
+  server: { auth: yourAuth, cors: { origin: 'https://app.example.com' } }
+  ```
+
+- Fixed reconnecting to a finished durable or evented agent run from a server other than the one that ran it. While the run's output is still retained (30 seconds by default), `POST /agents/:agentId/observe` now replays it from any server that shares the cache, instead of returning 404. Access checks are unchanged: other users and callers without read access to the run's thread are still refused, stopping a run still requires write access, and the run returns 404 once its output is cleaned up. ([#29791](https://github.com/mastra-ai/mastra/pull/29791))
+
+- Fixed `observe(runId, { offset })` on evented agents that use a cross-process PubSub such as Redis Streams with the default in-memory server cache. Resuming a run no longer repeats events from before the offset, and an offset past the end of a finished run now returns nothing. ([#29798](https://github.com/mastra-ai/mastra/pull/29798))
+
+  ```ts
+  const mastra = new Mastra({
+    agents: { agent: createEventedAgent({ agent }) },
+    pubsub: new RedisStreamsPubSub({ url: 'redis://localhost:6379' }),
+    storage: new LibSQLStore({ url: 'file:mastra.db' }),
+  });
+
+  // Resumes exactly after the last chunk received
+  await mastra.getAgent('agent').observe(runId, { offset: lastIndex + 1 });
+  ```
+
+  Steps that run in another process, such as a dedicated worker, still publish unnumbered events with an in-memory cache, and now log a warning. Configure a shared cache such as `RedisServerCache` for that setup or when observers reconnect through another server replica. Fixes #28324.
+
+- Fixed long-running agent processes (such as Mastra Code sessions left open for days) losing their thread lease mid-run with "lost its lease before publishing a terminal event". Temp-directory cleaners could delete the file that marks the process as alive, after which the process's own leases looked abandoned. The marker is now restored whenever it goes missing. Also kept a custom reason passed to `abortSignal` intact for the run. ([#29723](https://github.com/mastra-ai/mastra/pull/29723))
+
+- Improved skill discovery through `skill_search`: ([#26316](https://github.com/mastra-ai/mastra/pull/26316))
+
+  - **Name and description search:** `skill_search` now finds skills by name and description, not just by the text inside `SKILL.md` and reference files. With BM25 or vector search, each skill adds one small search document for its name and description (one extra embedding per skill with vector search). Searches without BM25 or vector search now rank skills by how many query words they contain, instead of returning nothing unless the whole query appears verbatim.
+  - **Reference file paths in results:** results from reference files now include the file path (for example `references/style-guide.md`), so the agent can open the match with `skill_read`.
+  - **Shorter not-found messages:** when the agent asks `skill` or `skill_read` for a skill that doesn't exist and more than 20 skills are available, the tool suggests up to five close matches and points to `skill_search` instead of listing every skill.
+
+- Fixed TypeScript errors with zod v3 schemas and newer `ai` v7 messages. ([#29581](https://github.com/mastra-ai/mastra/pull/29581))
+
+  - zod v3 schemas now type-check in `createStep(agent, { structuredOutput })` and the workflow `.agent()` step, and in `defaultOptions.structuredOutput`. With a zod v3 `output` schema, `generateLegacy` now types `result.object` from the schema. In client-js, `agent.generate()`/`stream()` with a zod v3 `structuredOutput` schema no longer fails with "union type that is too complex to represent". See [#29574](https://github.com/mastra-ai/mastra/issues/29574).
+  - `UIMessage[]` from newer `ai` v7 releases, which can include part types like `steering-message` from `ai@7.0.163`, can now be passed to `agent.generate()` and `agent.stream()`. Mastra does not process these new part types yet. See [#29575](https://github.com/mastra-ai/mastra/issues/29575).
+
+- Durable agent runs now surface a publish failure immediately instead of stalling for ten seconds. When the event transport rejected a publish, the frame stayed in the replay log but never arrived live, so the stream waited out its pending-frame deadline before delivering the error. ([#29718](https://github.com/mastra-ai/mastra/pull/29718))
+
+- The `execute_command` tool description now tells agents that `timeout` stops a background command after that many seconds, so they leave it out for dev servers and other commands that should keep running. ([#29000](https://github.com/mastra-ai/mastra/pull/29000))
+
+- Export `AgentStreamBus`, `createRunAbortController`, and the `RunAbortController` type from `@mastra/core/agent/durable` for shared stream-bus and caller-cancellation setup. ([#29635](https://github.com/mastra-ai/mastra/pull/29635))
+
+  ```ts
+  import { AgentStreamBus, createRunAbortController, type RunAbortController } from '@mastra/core/agent/durable';
+
+  const caller = new AbortController();
+  const run: RunAbortController = createRunAbortController(caller.signal);
+  caller.abort(new Error('Stop this run'));
+  console.log(run.controller.signal.aborted); // true
+  run.detach();
+  ```
+
+  Plain and durable agents share caller-abort forwarding. Existing stream delivery and cleanup policies are preserved.
+
+- Fixed `Agent.observe()` replays showing a later state of a run than the one the caller saw live. After a tool approval and resume, a replayed `step-finish` could list steps that only happened after it was emitted. Each published stream event is now a copy taken when it is published, so replays from the in-memory cache and Redis match the live stream. ([#29803](https://github.com/mastra-ai/mastra/pull/29803))
+
+  **Behavior change for same-process observers:** the copy uses the same encoding as cross-process pubsub, not a lossless clone. Events received through `Agent.observe()` or the stream pubsub in the same process now behave like events received from another process:
+
+  - `Date`, `Error`, `Map`, `Set`, `BigInt`, `undefined` values, and registered classes (step results, generated files) are preserved.
+  - Functions and symbols are dropped, `NaN`/`Infinity` and circular references become `null`, and arbitrary `Uint8Array`s and other unregistered class instances become plain data.
+  - If an event cannot be encoded (for example, a `toJSON()` that throws), a warning is logged and that event is published as-is, without the snapshot guarantee.
+
+  The stream returned directly to the caller of `agent.stream()` is unchanged.
+
+- Fixed `agent.stream()` skipping `onFinish` when an output processor blocks the stream with a tripwire. `onFinish` and the agent's finish handling (memory, title generation, scorers) now run once with `finishReason: 'other'` and the tripwire details. This also applies to tool-result tripwires on the default in-process loop; the durable, evented and Inngest engines still settle those without calling `onFinish`. ([#29470](https://github.com/mastra-ai/mastra/pull/29470))
+
+- Fixed a failed workspace filesystem resolver call being cached for the rest of the request. A transient error no longer disables filesystem and skill tools until the next request; the next call retries the resolver. ([#29480](https://github.com/mastra-ai/mastra/pull/29480))
+
 ## 1.83.0-alpha.2
 
 ## 1.83.0-alpha.1

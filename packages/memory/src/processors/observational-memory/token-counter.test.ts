@@ -951,6 +951,31 @@ describe('TokenCounter', () => {
       expect(secondEntry.tokens).not.toBe(firstEntry.tokens);
     });
 
+    it('recounts tool calls and string content changed in place on the same counter', () => {
+      const counter = new TokenCounter();
+      const toolMessage = createToolInvocationMessage('result', { result: { rows: ['a'] } });
+      const stringMessage = createMessage('short');
+      const countFresh = (message: any) => new TokenCounter().countMessage(structuredClone(message));
+
+      counter.countMessage(toolMessage);
+      counter.countMessage(stringMessage);
+
+      const invocation = toolMessage.content.parts[0].toolInvocation;
+      invocation.args = { name: 'Dero Israel', filter: 'active users created in the last thirty days' };
+      invocation.result.rows.push('a much longer row that adds several more tokens to the tool result');
+      stringMessage.content = 'a much longer string content that adds several more tokens to the message';
+
+      expect(counter.countMessage(toolMessage)).toBe(countFresh(toolMessage));
+      expect(counter.countMessage(stringMessage)).toBe(countFresh(stringMessage));
+
+      invocation.args = TOOL_ARGS;
+      invocation.result.rows.pop();
+      stringMessage.content = 'short';
+
+      expect(counter.countMessage(toolMessage)).toBe(countFresh(toolMessage));
+      expect(counter.countMessage(stringMessage)).toBe(countFresh(stringMessage));
+    });
+
     it('recomputes when version or source markers mismatch', () => {
       const counter = new TokenCounter();
       const message = createMessage({
@@ -1403,6 +1428,34 @@ describe('TokenCounter', () => {
       expect(estimate?.tokens).toBeLessThan(
         counter.countString(JSON.stringify(message.content.parts[0].toolInvocation.result)),
       );
+    });
+
+    it('counts a plain tool result with a circular reference as JSON instead of throwing', () => {
+      const counter = new TokenCounter();
+      const result: Record<string, unknown> = { status: 'ok', items: ['a', 'b'] };
+      result.self = result;
+      const message = createMessage({
+        format: 2,
+        parts: [
+          {
+            type: 'tool-invocation',
+            toolInvocation: {
+              state: 'result',
+              toolCallId: 'tool-1',
+              toolName: 'lookup',
+              args: { id: 1 },
+              result,
+            },
+          },
+        ],
+      });
+
+      const tokens = counter.countMessage(message);
+
+      expect(Number.isFinite(tokens)).toBe(true);
+      expect(getCachedEstimateByKind(message.content.parts[0], 'tool-result-json')).toBeDefined();
+      expect(getCachedEstimateByKind(message.content.parts[0], 'tool-result-multimodal-content')).toBeUndefined();
+      expect(counter.countMessage(message)).toBe(tokens);
     });
   });
 

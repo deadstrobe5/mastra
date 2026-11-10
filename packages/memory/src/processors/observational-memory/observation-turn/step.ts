@@ -766,10 +766,13 @@ export function getPartKeys(msg: MastraDBMessage): string[] {
       };
       identity = JSON.stringify(rest);
     }
-    // Ordinal keeps identical parts within one message distinct.
+    // Ordinal keeps identical parts within one message distinct. The first occurrence is keyed by the
+    // identity itself (always a JSON object or array, so it can't collide with a suffixed key): it
+    // reuses the cached tool identity string, whose hash V8 keeps, instead of building and hashing
+    // a new string for every part on every step.
     const ordinal = seen.get(identity) ?? 0;
     seen.set(identity, ordinal + 1);
-    return [`${identity}#${ordinal}`];
+    return [ordinal === 0 ? identity : `${identity}#${ordinal}`];
   });
 }
 

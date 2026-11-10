@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { createHash } from 'node:crypto';
+import { createHash, hash } from 'node:crypto';
 import type { MastraDBMessage } from '@mastra/core/agent';
 import type { MastraToolInvocation } from '@mastra/core/agent/message-list';
 import { estimateTokenCount } from 'tokenx';
@@ -166,7 +166,7 @@ function ensureMessageMastraMetadata(message: MastraDBMessage): NonNullable<Mast
 }
 
 function buildEstimateKey(kind: string, text: string): string {
-  const payloadHash = createHash('sha256').update(text).digest('hex');
+  const payloadHash = hash('sha256', text);
   return `${kind}:${payloadHash}`;
 }
 
@@ -1234,6 +1234,12 @@ export class TokenCounter {
   private readonly defaultModelContext?: TokenCounterModelContext;
   private readonly inFlightAttachmentCounts = new Map<string, Promise<number | undefined>>();
   private readonly multimodalToolResultCounts = new WeakMap<object, { resultKey: string; tokens: number }>();
+  /**
+   * Last estimate key per owner (part or message) and kind, with the payload it was built from.
+   * Every count re-serializes the whole context to find the cached estimates; when a payload hasn't
+   * changed since the previous count, its key is reused instead of hashing the payload again.
+   */
+  private readonly estimateKeys = new WeakMap<object, Map<string, { payload: string; key: string }>>();
 
   // Per-message overhead: accounts for role tokens, message framing, and separators.
   // 3.8 remains a practical average across providers for OM thresholding.
@@ -1264,8 +1270,24 @@ export class TokenCounter {
     return estimateTokenCount(text);
   }
 
-  private readOrPersistPartEstimate(part: CacheablePart, kind: string, payload: string): number {
+  private getEstimateKey(owner: object, kind: string, payload: string): string {
+    let keys = this.estimateKeys.get(owner);
+    const previous = keys?.get(kind);
+    if (previous?.payload === payload) {
+      return previous.key;
+    }
+
     const key = buildEstimateKey(kind, payload);
+    if (!keys) {
+      keys = new Map();
+      this.estimateKeys.set(owner, keys);
+    }
+    keys.set(kind, { payload, key });
+    return key;
+  }
+
+  private readOrPersistPartEstimate(part: CacheablePart, kind: string, payload: string): number {
+    const key = this.getEstimateKey(part, kind, payload);
     const cached = getPartCacheEntry(part, key);
     if (isValidCacheEntry(cached, key, this.cacheSource)) {
       return cached.tokens;
@@ -1283,7 +1305,7 @@ export class TokenCounter {
   }
 
   private readOrPersistFixedPartEstimate(part: CacheablePart, kind: string, payload: string, tokens: number): number {
-    const key = buildEstimateKey(kind, payload);
+    const key = this.getEstimateKey(part, kind, payload);
     const cached = getPartCacheEntry(part, key);
     if (isValidCacheEntry(cached, key, this.cacheSource)) {
       return cached.tokens;
@@ -1300,7 +1322,7 @@ export class TokenCounter {
   }
 
   private readOrPersistMessageEstimate(message: MastraDBMessage, kind: string, payload: string): number {
-    const key = buildEstimateKey(kind, payload);
+    const key = this.getEstimateKey(message, kind, payload);
     const cached = getMessageCacheEntry(message, key);
     if (isValidCacheEntry(cached, key, this.cacheSource)) {
       return cached.tokens;
@@ -1329,16 +1351,16 @@ export class TokenCounter {
       return undefined;
     }
 
-    const resultKey = buildEstimateKey('tool-result-multimodal-content-source', JSON.stringify(toolResult));
-    const cached = this.multimodalToolResultCounts.get(part);
-    if (cached?.resultKey === resultKey) {
-      return cached.tokens;
-    }
-
     const output = toolResult as Record<string, unknown>;
     const content = output.type === 'content' && Array.isArray(output.value) ? output.value : output.content;
     if (!Array.isArray(content)) {
       return undefined;
+    }
+
+    const resultKey = buildEstimateKey('tool-result-multimodal-content-source', JSON.stringify(toolResult));
+    const cached = this.multimodalToolResultCounts.get(part);
+    if (cached?.resultKey === resultKey) {
+      return cached.tokens;
     }
 
     let hasAttachment = false;
